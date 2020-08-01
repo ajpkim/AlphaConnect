@@ -15,52 +15,40 @@ from game.connect4 import Connect4
 ### I can use args and config arguments since these will be called from main script
 
 class Node():
-    id_num = 0
-    def __init__(self, state, parent=None):
+    id_num = 0  # DEBUGGING
+    def __init__(self, state, parent=None, player_id=1):
         self.id = Node.id_num
+        self.player_id = player_id
         self.state = state
         self.parent = parent
-        self.edges = {}  # keys=action, values=child node
+        self.edges = {}  # {k=action: v=child node}
         self.terminal = False
-        self.W = 0
-        self.N = 0
-        self.P = None 
-        Node.id_num += 1
+        self.W = 0  # sum of value derived below node
+        self.N = 0  # visit count
+        self.P = None  # prior probabilities for action. {k=action: v=prob}
+        Node.id_num += 1  # DEBUGGING
 
     @property
     def explored(self):
+        "False for leaf nodes."
         return True if self.edges else False
 
     @property
     def Q(self):
+        "Average value derived below node."
         return self.W / self.N if self.N > 0 else 0
     
     @ property
     def Pi(self):
-        policy_probs = []
-        for action in range(7):
+        "Improved action probabilities derived from MCTS."
+        policy_probs = np.zeros(7) # adjust to game.actions if want to use for other board dims or games
+        for action in range(len(policy_probs)):  
             if action in self.edges:
-                policy_probs.append(self.edges[action].N / self.N)
-            else:
-                policy_probs.append(0)
+                policy_probs[action] = (self.edges[action].N / self.N)
         return policy_probs
     
     def __repr__(self):
-        return f'MCTS Node id: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}, P: {self.P}'
-
-def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4) -> dict:
-    """
-    Query NN policy head for action probabilities. Assign 0 to invalid moves.
-    Return dict of action keys and action probabilty values.
-    """
-    prior_probs = net(state)[1].detach().squeeze().numpy()
-    
-    # ADD DIERLECHT NOISE 
-    
-    
-    prior_probs[game.invalid_actions] = 0.000
-    prior_probs = dict(enumerate(prior_probs))
-    return prior_probs
+        return f'MCTS Node for player {self.player_id}, id: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}, P: {self.P}'
 
 def select_leaf(node: Node, C_puct=1.0) -> Node:
     """
@@ -85,7 +73,31 @@ def select_leaf(node: Node, C_puct=1.0) -> Node:
             highest_score = Q + U
             next_node = node.edges[action]
     
+
+    
     return select_leaf(next_node)
+
+def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirich_alpha=0.75) -> dict:
+    """
+    Query NN policy head for action probabilities. Add dirichlet noise to prior probabilities
+    
+    Assign 0 to invalid moves.
+    Return dict of action keys and action probabilty values.
+    """
+    prior_probs = net(state)[1].detach().squeeze().numpy()
+    dirichlet_noise = np.random.dirichlet([dirich_alpha] * len(prior_probs))
+    prior_probs += dirichlet_noise
+    prior_probs[game.invalid_actions] = 0.000
+    prior_probs = dict(enumerate(prior_probs))
+    return prior_probs
+
+def backup(node: Node, V: float) -> None:
+    "Recursively update the nodes along the path taken to reach given node"
+    
+    node.N += 1
+    node.W += V
+    if node.parent:
+        backup(node.parent, V)
 
 def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     """
@@ -97,16 +109,16 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     """
 
     if game.outcome:  # leaf is a terminal node
-        # GET OUTCOME BASED ON POV
-        # V = ???
+        if game.outcome == node.player_id: V = game.outcome
+        elif game.outcome == 'tie': V = 0
+        else: V = -1
         backup(leaf, V)
 
     V = net(leaf.state)[0].item()
-
     leaf.P = prior_action_probs(leaf.state, net, game)
 
-    # initialize all possible edges and resulting child nodes.
     ### CONSIDER CREATING METHODS TO UNDO MOST RECENT MOVE IF THIS IS TOO INEFFICIENT...
+    # initialize all possible edges and resulting child nodes.
     for action in game.valid_actions:
         game_copy = copy.deepcopy(game)
         game_copy.make_move(action)
@@ -116,15 +128,8 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     
     backup(leaf, V)
 
-def backup(node: Node, V: float) -> None:
-    "Recursively update the nodes along the path taken to reach given node"
-    
-    node.N += 1
-    node.W += V
-    if node.parent:
-        backup(node.parent)
 
-def select_action(node, game, training=True):
+def select_action(node, training=True):
     """
     If training, select an action from the current state proportional to  
     visit count. Otherwise, select the most visited action.         
@@ -133,9 +138,9 @@ def select_action(node, game, training=True):
     if not training:
         most_visited = max(node.edges.keys(), key=lambda x: node.edges[x].N)
         return most_visited
-
+        
     actions = list(node.edges.keys())
-    next_action = random.choices(actions, node.Pi[actions])[0]
+    next_action = random.choices(actions, node.Pi[actions])
 
     return next_action
 ###################################
@@ -154,7 +159,7 @@ def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: in
     
     for simulation in range(n_simulations):
         leaf = select_leaf(root, net)
-        process_leaf(leaf, net, game)
+        process_leaf(leaf, net, game)  ### WRONG. THIS GAME WILL ALWAYS BE AT THE TOP OF THE GAME STATE
     
 
 def mcts_self_play(net: AlphaNet, n_simulations=600, C_puct=1.0):

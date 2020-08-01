@@ -70,14 +70,14 @@ class AlphaNet(nn.Module):
         super(AlphaNet, self).__init__()
         self.conv = ConvBlock()
         for i in range(10):
-            setattr(self, "res%i" % i, ResidualBlock())
+            setattr(self, f'res_{i}', ResidualBlock())
         self.value_head = ValueHead()
         self.policy_head = PolicyHead()
         
     def forward(self, x):
         x = self.conv(x)
-        for res_layer in range(10):
-            x = getattr(self, "res%i" % res_layer)(x)
+        for i in range(10):
+            x = getattr(self, f'res_{i}')(x)
         v = self.value_head(x)
         p = self.policy_head(x)
         return v, p  # (value, policy) tuple

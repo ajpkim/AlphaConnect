@@ -6,6 +6,7 @@ class Connect4:
     def __init__(self, rows=6, cols=7):
         self.rows = rows
         self.cols = cols
+        self.actions = [i for i in range(cols)]
         self.board = np.zeros((rows, cols))
         self.turns = 0
         self.outcome = None
@@ -20,9 +21,9 @@ class Connect4:
     def valid_actions(self):
         valid_actions = []
         for i in range(self.cols):
-            if self.board[(0, i)] == 0:
+            if self.board[0, i] == 0.0:
                 valid_actions.append(i)
-            return valid_actions
+        return valid_actions
 
     @property
     def invalid_actions(self):
@@ -30,7 +31,7 @@ class Connect4:
         for i in range(self.cols):
             if self.board[(0, i)] != 0:
                 invalid_actions.append(i)
-            return invalid_actions
+        return invalid_actions
 
     @property
     def state(self):
@@ -44,9 +45,9 @@ class Connect4:
                 else:
                     state[(1, row, col)] = 1
 
-            if self.turns % 2 == 0:
-                state[2, :] = 1
-            return torch.tensor(state, dtype=(torch.float32))
+        if self.turns % 2 == 0:
+            state[2, :] = 1
+        return torch.tensor(state, dtype=(torch.float32))
 
     def make_move(self, col: int):
         """Attempt to play piece in given col. Raise error if illegal move."""
@@ -72,12 +73,10 @@ class Connect4:
         if self.turns < 7:
             return False
 
-
         if self.turns == self.rows * self.cols:  # tie
             self.outcome = 'tie'
             return False
 
-        # adjust for empty col... OR raise error here if called on empty col???
         row = self.rows - 1 - max(0, self.col_height(col) - 1)
         player_id = self.board[row][col]
         # vertical win
