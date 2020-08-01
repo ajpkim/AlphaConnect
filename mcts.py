@@ -5,18 +5,14 @@ import random
 from alpha_net import AlphaNet
 from game.connect4 import Connect4
 
-# http://tim.hibal.org/blog/alpha-zero-how-and-why-it-works/
-# https://medium.com/@jonathan_hui/monte-carlo-tree-search-mcts-in-alphago-zero-8a403588276a
-
-### I can use args and config arguments since these will be called from main script
-
-
 ### NEED TO HANDLE FOR POV IE TAKE ARGMAX OF - Q + U, ETC...
 ### ---> can just create 2 separate trees and just take negative argmaxs
 ## How can i assign v to game outcome without tracking player turn and whatnot?
 # Having a dedicated Tree datastructure will also allow me to query tree with a state to
 # retrieve dataset info easily
 # ---> Tree can just be a dict of Nodes
+
+### I can use args and config arguments since these will be called from main script
 
 class Node():
     id_num = 0
@@ -172,3 +168,5 @@ def mcts_self_play(net: AlphaNet, n_simulations=600, C_puct=1.0):
         run_simulations(root, net, game, n_simulations)
         action = select_action(curr_node, game, training=True)
         game.make_move(action)
+        
+        pass
