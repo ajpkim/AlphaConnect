@@ -57,8 +57,9 @@ class Connect4:
             self.turns += 1
             self.check_winning_move(col)
         else:
-            raise Exception(f"Illegal move. Attemped to play in column {col}.\
-                              Valid actions: {self.valid_actions}")
+            raise Exception(f"Illegal move. Attemped to play in column {col}. "\
+                            f"Valid actions: {self.valid_actions}\n{self.board}")
+                              
 
     def col_height(self, col):
         """Return number of game pieces played in given col"""
@@ -69,7 +70,7 @@ class Connect4:
         return np.where(col == 0)[0][0]
 
     def check_winning_move(self, col):
-        "Check if most recent move (given by col) is a winning move. Update game outcome"
+        """Check if most recent move (given by col) is a winning move. Update game outcome"""
         if self.turns < 7:
             return False
 
