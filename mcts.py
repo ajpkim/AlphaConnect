@@ -8,17 +8,28 @@ from logger import get_logger
 from game.connect4 import Connect4
 
 
-### ISSUE - SELECTING ILLEGAL ACTIONS IN SELECT LEAF SEARCH
-# shouldn't be happening since illegal actions shouldnt have nodes seeded
-
 ### I can use args and config arguments since these will be called from main script
+
+class Tree:
+    def __init__(self, game: Connect4):
+        self.game = game
+        self.nodes = {}  # k=game state, v=node
+
+
+        self.Ns
+        self.Ws
+        self.Ps
+        self.Qs = {}
+
 
 test_log = 'test_logs/mcts.log'
 logger = get_logger(__name__, test_log)
 
 
 class Node:
+    node_id = 0
     def __init__(self, state: np.array, player_id: int, parent=None):
+        self.id = Node.node_id
         self.player_id = player_id # necessary to interpret game outcome for value assignment
         self.state = state  # game state
         self.parent = parent
@@ -26,6 +37,7 @@ class Node:
         self.W = 0  # sum of value derived below node
         self.N = 0  # visit count
         self.P = None  # prior probabilities for action. {k=action: v=prob}
+        Node.node_id += 1
 
     @property
     def explored(self):
@@ -47,7 +59,7 @@ class Node:
         return policy_probs
     
     def __repr__(self):
-        return f'MCTS Node for player {self.player_id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}, P: {self.P}'
+        return f'MCTS Node for player {self.player_id}, ID: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}, P: {self.P}'
 
 def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     """
@@ -60,13 +72,13 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     and asympotically selects paths with high Q vals. A leaf node indicates a
     terminal or unexplored state.
     """
-    logger.info('SELECT LEAF')
-    logger.info(node)
-    logger.info(f'\n{game}')
+    # logger.info('SELECT LEAF')
+    # logger.info(node)
+    # logger.info(f'\n{game}')
 
     # base case: return leaf node.
     if not node.explored:
-        logger.info('NOT EXPLORED')
+        # logger.info('NOT EXPLORED')
         return node
     
     # recursively take actions that maximize Q + U until a leaf node is found.
@@ -80,6 +92,9 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
             next_action = action
     
     game.make_move(next_action)
+
+    # logger.info(f'\n\n\nMADE MOVE IN SIMULATION GAME\n{game}\n\n\n')
+
     next_node = node.edges[next_action]
 
     return select_leaf(next_node, game)
@@ -113,8 +128,8 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     backpropogated up the tree to account for the switch in perspective
     between parent and child nodes.
     """
-    logger.info('PROCESSING')
-    logger.info(leaf)
+    # logger.info(f'PROCESSING LEAF: {leaf}')
+    # logger.info(f'current game state\n{game}')
 
     if game.outcome:  # leaf is a terminal node
         if game.outcome == leaf.player_id: 
@@ -127,6 +142,18 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
 
     V = net(leaf.state)[0].item()
     leaf.P = prior_action_probs(leaf.state, net, game)
+
+    # alt tree version  'self' is tree
+    for action in game.valid_actions:
+        game_copy = copy.deepcopy(game)
+        game_copy.make_move(action)
+        new_state = game_copy.state
+
+        # if self.nodes[state]:
+        #     leaf.edges[action] = self.nodes[state]
+        # else:
+        #     child_node = Node(new_state, parent=leaf, player_id=game_copy.player_turn)
+        #     leaf.edges[action] = child_node
 
     # initialize all possible edges and resulting child nodes.
     for action in game.valid_actions:
@@ -152,6 +179,8 @@ def select_action(node, training=True):
     actions = list(node.edges.keys())
     next_action = random.choices(actions, node.Pi[actions])[0]
 
+    # logger.info('-----------------SIMULATION OVER----------------------------------')
+
     return next_action
 
 def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: int) -> None:
@@ -161,8 +190,8 @@ def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: in
         leaf = select_leaf(root, game_copy)
         process_leaf(leaf, net, game_copy)  
 
-def mcts_search(state: np.array) -> int:
-    pass
+def mcts_search(game: Connect4) -> int:
+    root = Node(state=game.state, player_id=game.player_turn, parent=None)
 
 
 def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=400, C_puct=1.0):
