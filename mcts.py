@@ -1,26 +1,15 @@
 import copy
 import logging
+import math
 import numpy as np
 import random
 
 from alpha_net import AlphaNet
-from logger import get_logger
+from utils.logger import get_logger
 from game.connect4 import Connect4
 
 
 ### I can use args and config arguments since these will be called from main script
-
-class Tree:
-    def __init__(self, game: Connect4):
-        self.game = game
-        self.nodes = {}  # k=game state, v=node
-
-
-        self.Ns
-        self.Ws
-        self.Ps
-        self.Qs = {}
-
 
 test_log = 'test_logs/mcts.log'
 logger = get_logger(__name__, test_log)
@@ -38,17 +27,17 @@ class Node:
         self.N = 0  # visit count
         self.P = None  # prior probabilities for action. {k=action: v=prob}
         Node.node_id += 1
+    
+    @property
+    def Q(self):
+        """Average value derived below node."""
+        return self.W / self.N if self.N > 0 else 0
 
     @property
     def explored(self):
         """Boolean for whether node has been explored. False for all terminal nodes."""
         return True if self.edges else False
 
-    @property
-    def Q(self):
-        """Average value derived below node."""
-        return self.W / self.N if self.N > 0 else 0
-    
     @ property
     def Pi(self):
         """Improved action probabilities derived from MCTS."""
@@ -143,18 +132,6 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     V = net(leaf.state)[0].item()
     leaf.P = prior_action_probs(leaf.state, net, game)
 
-    # alt tree version  'self' is tree
-    for action in game.valid_actions:
-        game_copy = copy.deepcopy(game)
-        game_copy.make_move(action)
-        new_state = game_copy.state
-
-        # if self.nodes[state]:
-        #     leaf.edges[action] = self.nodes[state]
-        # else:
-        #     child_node = Node(new_state, parent=leaf, player_id=game_copy.player_turn)
-        #     leaf.edges[action] = child_node
-
     # initialize all possible edges and resulting child nodes.
     for action in game.valid_actions:
         game_copy = copy.deepcopy(game)
@@ -183,34 +160,51 @@ def select_action(node, training=True):
 
     return next_action
 
-def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: int) -> None:
-    
+def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: int, C_puct: float) -> None:
+    """Run given number of MCTS simulations from the root node"""
     for simulation in range(n_simulations):
         game_copy = copy.deepcopy(game)
-        leaf = select_leaf(root, game_copy)
+        leaf = select_leaf(root, game_copy, C_puct)
         process_leaf(leaf, net, game_copy)  
 
-def mcts_search(game: Connect4) -> int:
-    root = Node(state=game.state, player_id=game.player_turn, parent=None)
+def mcts_search(root: Node, net: AlphaNet, game: Connect4, n_simulations: int) -> int:
+    pass
 
 
-def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=400, C_puct=1.0):
+def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=50, C_puct=1.0):
     """
     Generate training data via self-play. Returns list of (state, Pi, Z) tuples.
     Pi: improved action probabilities resulting from MCTS.
     Z: game outcome with value in [-1, 0, 1] for loss, tie, draw.
     """
     states, Pis, Zs = [],[],[]
-    current_node = Node(game.state, parent=None)
+    current_node = Node(game.state, parent=None, player_id=game.player_turn)
 
     while not game.outcome:
-        run_simulations(root, net, game, n_simulations)
-        action = select_action(current_node, game, training=True)
+        run_simulations(current_node, net, game, n_simulations, C_puct)
+        
+        states.append(game.state)
+        Pis.append(current_node.Pi)
+        Zs.append(0)  # placeholder with value for tie game.
+        
+        action = select_action(current_node, training=True)
         game.make_move(action)
         current_node = current_node.edges[action]
     
-        # STORE DATA
+    p1_move_count = Zs[::2]
+    p2_move_count = Zs[1::2]
+    if game.outcome == 1:
+        Zs[::2] = [1] * p1_move_count
+        Zs[1::2] = [-1] * p2_move_count
+    else: 
+        Zs[::2] = [-1] * p1_move_count
+        Zs[1::2] = [1] * p2_move_count
+    
+    # PROLLY SWITCH TO SINGLE GAME DATA LIST
+    # game_data
+    # for i in range(len(states)):
 
-        pass
+
+    return states, Pis, Zs
 
     

@@ -1,0 +1,15 @@
+# Global params
+random_seed: 3
+steps: 100
+
+# MCTS params
+n_simulations: 100
+C_puct: 1.0
+
+# Training params
+batch_size: 64
+memory_capacity: 10000
+lr: .2  # --> .005 * 0.9**20 == .00060788
+lr_gamma: .9
+lr_step_size: 5 # how often (epochs) to decrease lr 
+momentum: 0.9

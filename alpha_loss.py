@@ -1,4 +1,5 @@
 import math
+import torch
 # loss function for alpha_net
 
 # l2 regularization of c is set to 10**-4 in alphagoZero  
@@ -12,9 +13,10 @@ import math
 
 class AlphaLoss(torch.nn.Module):
     def __init__(self):
-        super(AlphaLoss, self).__int__()
+        super(AlphaLoss, self).__init__()
+        pass
 
-    def forward(self, z, p, v, pi)
+    def forward(self, z, p, v, pi):
         """
         Args:
             - z: value of state caclucated by MCTS
@@ -23,6 +25,7 @@ class AlphaLoss(torch.nn.Module):
             - pi: policy predicated by the network 
         """
         value_loss = (z - v) ** 2
+        pass
         # policy_loss = 
         
         # pi * math.log(p)  # cross entropy 
