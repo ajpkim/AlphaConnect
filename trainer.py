@@ -8,7 +8,7 @@ from game.connect4 import Connect4
 from mcts import mcts_self_play
 from replay_buffer import ReplayBuffer
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Trainer:
     def __init__(self, config):
@@ -21,16 +21,18 @@ class Trainer:
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size, config.lr_gamma, -1)
         self.loss_fn = AlphaLoss()
         self.training_step_count = 0
+        self.self_play_count = 0
 
 
     def self_play(self):
         """Execute one game of self play and store training data in replay buffer."""
         game = self.game()
-        states, Pis, Zs = mcts_self_play(self.net, game, self.config.n_simulations, self.config.C_puct)
+        states, Pis, Zs = mcts_self_play(self.net, game, self.config.n_simulations, self.config.C_puct, self.config.dirichlet_alpha)
         
         for state, Pi, Z in zip(states, Pis, Zs):
             self.replay_buffer.push(state, Pi, Z)
         
+        self.self_play_count += 1
         return game.history
 
     def learn(self):
@@ -47,29 +49,47 @@ class Trainer:
         self.optimizer.step()
 
         self.training_step_count += 1
-        if self.training_step_count <= 10_000: 
+        if self.training_step_count <= self.config.lr_scheduler_last_step: 
             self.scheduler.step()
+    
+    def save_model(self, model_file):
+        torch.save({'model_state_dict': self.net.state_dict()}, model_file)
+    
+    def load_model(self, model_file):
+        data = torch.load(mdoel_file, map_location=self.device)
+        state_dict = data['state_dict']
+        self.net.load_state_dict(state_dict)
 
     def save_checkpoint(self, checkpoint_file):        
+        
         torch.save({
                     'model_state_dict': self.net.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     'scheduler_state_dict': self.scheduler.state_dict(),
-                    'replay_buffer_memory': self.replay_buffer.memory,
-                    'training_step_count': self.training_step_count
+                    'training_step_count': self.training_step_count,
+                    'self_play_count': self.self_play_count
                     }, checkpoint_file)
     
     def load_checkpoint(self, checkpoint_file):
-        checkpoint = torch.load(checkpoint_file)
+
+        check_point = torch.load(checkpoint_file, map_location=self.device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        for state, Pi, Z in checkpoint['replay_buffer_memory']:
-            self.replay_buffer.push(state, Pi, Z)
         self.training_step_count = checkpoint['training_step_count']
+        self.self_play_count = checkpoint['self_play_count']
+
+    def save_replay_memory(self, memory_file):
+        torch.save(self.replay_buffer.memory, memory_file)
+        
+    def load_replay_memory(self, memory_file):
+        memory = torch.load(memory_file, map_location=self.device)
+        for state, Pi, Z in memory:
+            self.replay_buffer.push(state, Pi, Z)
+
 
     def __repr__(self):
-        return '<Trainer obj>'
+        return f'<Trainer. self play count: {self.self_play_count}, training steps: {self.training_step_count}>'
 
 
 
