@@ -1,15 +1,19 @@
-# Global params
+### Global params
+game: Connect4
 random_seed: 3
 steps: 100
 
-# MCTS params
+### MCTS params
 n_simulations: 100
 C_puct: 1.0
+dirichlet_alpha: 0.75
 
-# Training params
+### Training params
 batch_size: 64
 memory_capacity: 10000
-lr: .2  # --> .005 * 0.9**20 == .00060788
-lr_gamma: .9
-lr_step_size: 5 # how often (epochs) to decrease lr 
+lr: .2  # 
+lr_gamma: 0.1
+lr_step_size: 2500 
+# lr_last_step: 10000
 momentum: 0.9
+weight_decay: 0.0001

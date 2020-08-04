@@ -4,12 +4,12 @@ import math
 import numpy as np
 import random
 
+import torch
+
 from alpha_net import AlphaNet
-from utils.logger import get_logger
 from game.connect4 import Connect4
+from utils.logger import get_logger
 
-
-### I can use args and config arguments since these will be called from main script
 
 test_log = 'test_logs/mcts.log'
 logger = get_logger(__name__, test_log)
@@ -61,13 +61,9 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     and asympotically selects paths with high Q vals. A leaf node indicates a
     terminal or unexplored state.
     """
-    # logger.info('SELECT LEAF')
-    # logger.info(node)
-    # logger.info(f'\n{game}')
 
     # base case: return leaf node.
     if not node.explored:
-        # logger.info('NOT EXPLORED')
         return node
     
     # recursively take actions that maximize Q + U until a leaf node is found.
@@ -81,9 +77,6 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
             next_action = action
     
     game.make_move(next_action)
-
-    # logger.info(f'\n\n\nMADE MOVE IN SIMULATION GAME\n{game}\n\n\n')
-
     next_node = node.edges[next_action]
 
     return select_leaf(next_node, game)
@@ -94,6 +87,9 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirich_al
     dirichlet_noise = np.random.dirichlet([dirich_alpha] * len(prior_probs))
     prior_probs += dirichlet_noise
     prior_probs[game.invalid_actions] = 0.000
+
+    # force prior probabilties of valid actions to sum to 1
+    prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
     prior_probs = dict(enumerate(prior_probs))
 
     return prior_probs
@@ -147,7 +143,11 @@ def select_action(node, training=True):
     Select an action after MCTS simulations.
 
     If training, select an action from the current state proportional to  
-    visit count. Otherwise, select the most visited action.         
+    visit count. Otherwise, select the most visited action. Selecting action
+    proportional to visits mimics a constant temperature setting of 1.0 in
+    regards to AlphaZero action selection formula: 
+    Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
+    of visits to each possible edge.
     """
     if not training:
         most_visited = max(node.edges.keys(), key=lambda x: node.edges[x].N)
@@ -155,9 +155,6 @@ def select_action(node, training=True):
 
     actions = list(node.edges.keys())
     next_action = random.choices(actions, node.Pi[actions])[0]
-
-    # logger.info('-----------------SIMULATION OVER----------------------------------')
-
     return next_action
 
 def run_simulations(root: Node, net: AlphaNet, game: Connect4, n_simulations: int, C_puct: float) -> None:
@@ -181,8 +178,8 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=50, C_puct=1.0):
     current_node = Node(game.state, parent=None, player_id=game.player_turn)
 
     while not game.outcome:
+
         run_simulations(current_node, net, game, n_simulations, C_puct)
-        
         states.append(game.state)
         Pis.append(current_node.Pi)
         Zs.append(0)  # placeholder with value for tie game.
@@ -191,19 +188,16 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=50, C_puct=1.0):
         game.make_move(action)
         current_node = current_node.edges[action]
     
-    p1_move_count = Zs[::2]
-    p2_move_count = Zs[1::2]
+    p1_move_count = len(Zs[::2])
+    p2_move_count = len(Zs[1::2])
+    
     if game.outcome == 1:
         Zs[::2] = [1] * p1_move_count
         Zs[1::2] = [-1] * p2_move_count
-    else: 
+    elif game.outcome == 2: 
         Zs[::2] = [-1] * p1_move_count
         Zs[1::2] = [1] * p2_move_count
     
-    # PROLLY SWITCH TO SINGLE GAME DATA LIST
-    # game_data
-    # for i in range(len(states)):
-
 
     return states, Pis, Zs
 

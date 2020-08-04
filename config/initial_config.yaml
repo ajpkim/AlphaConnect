@@ -1,14 +1,19 @@
-# initial_config
-random_seed: 3
-epochs: 100
-iters: 2500  # minibatches per epoch
-learning_steps: 1000
+# ### Global params
+# game: Connect4
+# random_seed: 3
+# steps: 100
 
+# ### MCTS params
+# n_simulations: 100
+# C_puct: 1.0
+# dirichlet_alpha: 0.75
 
-Trainer:
-  batch_size: 64
-  lr: .2 
-  # lr_gamma: .9
-  # lr_step_size: 5 # how often (epochs) to decrease lr 
-  momentum: 0.9 # ?
-  
+# ### Training params
+# batch_size: 64
+# memory_capacity: 10000
+# lr: .2  # 
+# lr_gamma: 0.1
+# lr_step_size: 2500 
+# # lr_last_step: 10000
+# momentum: 0.9
+# weight_decay: 0.0001

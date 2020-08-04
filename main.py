@@ -15,9 +15,13 @@ from alpha_net import AlphaNet
 from game.connect4 import Connect4
 from utils.dot_dict import DotDict
 from utils.logger import get_logger, setup_logger
+from utils.load_config import load_config
 from mcts import Node, mcts_self_play, mcts_search
 from trainer import Trainer
 
+###############
+# convert  dot dict to named tuple and just read out yaml dict 
+# i.e. config = namedTuple('Config', list(config.keys()))(**config)
 
 
 parser = argparse.ArgumentParser()
@@ -54,7 +58,6 @@ checkpoint_dir = model_dir + '/checkpoints'
 trainer = Trainer(config)
 print(trainer)
 
-# SEND NET TO GPU IF AVAIL
 
 
 ### loop for

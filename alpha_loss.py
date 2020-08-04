@@ -1,38 +1,24 @@
-import math
 import torch
-# loss function for alpha_net
+import torch.nn as nn
 
-# l2 regularization of c is set to 10**-4 in alphagoZero  
-#    L2 weight regularizatiojn is c * theta**2 (sum of squares of all weights)
-
-### L = (z - v)**2 - pi * log(p) + c * theta**2
-
-# optimazation 
-# SGD  with momentum optimizer, momentum = 0.9
-    # LR = 10**-2 -> 10**-4 after 600k steps
 
 class AlphaLoss(torch.nn.Module):
     def __init__(self):
         super(AlphaLoss, self).__init__()
-        pass
 
-    def forward(self, z, p, v, pi):
+    def forward(self, Z, Pi, V, P):
         """
+        Loss function is a combination of MSE and cross entropy.
+
+        (Weight decay is used for regularization via optimizer)
+
         Args:
-            - z: value of state caclucated by MCTS
-            - p: actual probabilities calculated by MCTS
-            - v: value predicated by network
-            - pi: policy predicated by the network 
+            - Z: Game outcome
+            - Pi: action probabilities derived from MCTS 
+            - V: state value predicated by network
+            - P: action probabilities derived from NN
         """
-        value_loss = (z - v) ** 2
-        pass
-        # policy_loss = 
-        
-        # pi * math.log(p)  # cross entropy 
-        # loss = value_loss - policy_loss + c * theta**2
-        # return loss
-
-
-
-
+        value_loss = ((Z - V) ** 2).mean()
+        policy_loss = torch.sum(-Pi * P.log(), axis=1).mean()
+        return value_loss + policy_loss
 

@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# https://www.youtube.com/watch?v=OPgRNY3FaxA
-
 
 class ConvBlock(nn.Module):
     def __init__(self):
@@ -61,7 +59,7 @@ class PolicyHead(nn.Module):
     def forward(self, x):
         p = F.relu(self.bn1(self.conv1(x)))
         p = p.view(-1, 2*6*7)
-        p = self.fc1(p)
+        p = F.log_softmax(self.fc1(p), dim=1).exp()
         return p  # probabilities for each move
 
 
