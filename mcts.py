@@ -11,8 +11,8 @@ from game.connect4 import Connect4
 from utils.logger import get_logger
 
 
-test_log = 'test_logs/mcts.log'
-logger = get_logger(__name__, test_log)
+# test_log = 'test_logs/mcts.log'
+# logger = get_logger(__name__, test_log)
 
 
 class Node:
@@ -62,7 +62,7 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     terminal or unexplored state.
     """
 
-    # base case: return leaf node.
+    # base case: return discovered leaf node.
     if not node.explored:
         return node
     
@@ -88,7 +88,7 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirich_al
     prior_probs += dirichlet_noise
     prior_probs[game.invalid_actions] = 0.000
 
-    # force prior probabilties of valid actions to sum to 1
+    # make prior probabilties of valid actions sum to 1
     prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
     prior_probs = dict(enumerate(prior_probs))
 
@@ -113,8 +113,6 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4):
     backpropogated up the tree to account for the switch in perspective
     between parent and child nodes.
     """
-    # logger.info(f'PROCESSING LEAF: {leaf}')
-    # logger.info(f'current game state\n{game}')
 
     if game.outcome:  # leaf is a terminal node
         if game.outcome == leaf.player_id: 
@@ -145,7 +143,7 @@ def select_action(node, training=True):
     If training, select an action from the current state proportional to  
     visit count. Otherwise, select the most visited action. Selecting action
     proportional to visits mimics a constant temperature setting of 1.0 in
-    regards to AlphaZero action selection formula: 
+    regards to AlphaZero action selection equatio: 
     Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
     of visits to each possible edge.
     """
@@ -182,7 +180,7 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations=50, C_puct=1.0):
         run_simulations(current_node, net, game, n_simulations, C_puct)
         states.append(game.state)
         Pis.append(current_node.Pi)
-        Zs.append(0)  # placeholder with value for tie game.
+        Zs.append(0)  # placeholder with value for a tie game.
         
         action = select_action(current_node, training=True)
         game.make_move(action)

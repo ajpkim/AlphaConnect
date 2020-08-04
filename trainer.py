@@ -9,6 +9,7 @@ from mcts import mcts_self_play
 from replay_buffer import ReplayBuffer
 
 
+
 class Trainer:
     def __init__(self, config):
         self.config = config
@@ -22,15 +23,15 @@ class Trainer:
         self.training_step_count = 0
 
 
-    ### MAIN SCRIPT SO ITS EASIER TO WRITE DATA OUT LATER AND STORE GAME DATA ETC.?
     def self_play(self):
-        """Execute one game of self play and store training data"""
-        states, Pis, Zs = mcts_self_play(self.net, self.game(), self.config.n_simulations, self.config.C_puct)
+        """Execute one game of self play and store training data in replay buffer."""
+        game = self.game()
+        states, Pis, Zs = mcts_self_play(self.net, game, self.config.n_simulations, self.config.C_puct)
         
         for state, Pi, Z in zip(states, Pis, Zs):
             self.replay_buffer.push(state, Pi, Z)
         
-        return states, Pis, Zs
+        return game.history
 
     def learn(self):
         """Perform one learning step with batch sampled from replay buffer"""
@@ -42,17 +43,18 @@ class Trainer:
         self.optimizer.zero_grad()
         V, P = self.net(states)
         loss = self.loss_fn(Z, Pi, V, P)
-        print(loss)
         loss.backward()
         self.optimizer.step()
 
         self.training_step_count += 1
-        if self.training_step_count < 10_000: 
+        if self.training_step_count <= 10_000: 
             self.scheduler.step()
 
     def save_checkpoint(self, checkpoint_file):        
         torch.save({
                     'model_state_dict': self.net.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'scheduler_state_dict': self.scheduler.state_dict(),
                     'replay_buffer_memory': self.replay_buffer.memory,
                     'training_step_count': self.training_step_count
                     }, checkpoint_file)
@@ -60,6 +62,8 @@ class Trainer:
     def load_checkpoint(self, checkpoint_file):
         checkpoint = torch.load(checkpoint_file)
         self.net.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         for state, Pi, Z in checkpoint['replay_buffer_memory']:
             self.replay_buffer.push(state, Pi, Z)
         self.training_step_count = checkpoint['training_step_count']

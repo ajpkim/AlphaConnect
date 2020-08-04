@@ -46,7 +46,7 @@ class ValueHead(nn.Module):
         v = F.relu(self.fc1(v))
         v = self.fc2(v)
         v = torch.tanh(v)
-        return v  # value wrt expected game outcome from current state
+        return v  
 
 
 class PolicyHead(nn.Module):
@@ -60,7 +60,7 @@ class PolicyHead(nn.Module):
         p = F.relu(self.bn1(self.conv1(x)))
         p = p.view(-1, 2*6*7)
         p = F.log_softmax(self.fc1(p), dim=1).exp()
-        return p  # probabilities for each move
+        return p 
 
 
 class AlphaNet(nn.Module):

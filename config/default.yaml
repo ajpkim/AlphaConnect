@@ -1,7 +1,7 @@
 ### Global params
 game: Connect4
 random_seed: 3
-steps: 100
+steps: 1000
 
 ### MCTS params
 n_simulations: 100

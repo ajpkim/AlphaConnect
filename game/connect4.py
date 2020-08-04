@@ -8,6 +8,7 @@ class Connect4:
         self.cols = cols
         self.actions = [i for i in range(cols)]
         self.board = np.zeros((rows, cols))
+        self.history = []
         self.turns = 0
         self.outcome = None
 
@@ -52,6 +53,7 @@ class Connect4:
     def make_move(self, col: int):
         """Attempt to play piece in given col. Raise error if illegal move."""
         if col in self.valid_actions:
+            self.history.append(col)
             row = self.rows - self.col_height(col) - 1
             self.board[row][col] = self.player_turn
             self.turns += 1
@@ -60,7 +62,6 @@ class Connect4:
             raise Exception(f"Illegal move. Attemped to play in column {col}. "\
                             f"Valid actions: {self.valid_actions}\n{self.board}")
                               
-
     def col_height(self, col):
         """Return number of game pieces played in given col"""
         col = self.board[:, col]
@@ -137,6 +138,7 @@ class Connect4:
     
     def reset(self):
         self.board = np.zeros((3,6,7))
+        self.history = []
         self.turns = 0
         self.outcome = None
 
@@ -145,9 +147,4 @@ class Connect4:
         s = ''
         for row in self.board:
             s += str(row) + '\n'
-
         return s
-
-
-if __name__ == '__main__':
-    pass
