@@ -11,8 +11,8 @@ from game.connect4 import Connect4
 from utils.logger import get_logger
 
 
-test_log = 'test_logs/mcts.log'
-logger = get_logger(__name__, test_log)
+# test_log = 'test_logs/mcts.log'
+# logger = get_logger(__name__, test_log)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
