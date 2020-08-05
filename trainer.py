@@ -72,7 +72,7 @@ class Trainer:
     
     def load_checkpoint(self, checkpoint_file):
 
-        check_point = torch.load(checkpoint_file, map_location=self.device)
+        checkpoint = torch.load(checkpoint_file, map_location=self.device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
@@ -83,7 +83,7 @@ class Trainer:
         torch.save(self.replay_buffer.memory, memory_file)
         
     def load_replay_memory(self, memory_file):
-        memory = torch.load(memory_file, map_location=self.device)
+        memory = torch.load(memory_file, map_location='cpu')  # get sent to gpu during learn step. Otherwise some memories are on cpu, others gpu.
         for state, Pi, Z in memory:
             self.replay_buffer.push(state, Pi, Z)
 

@@ -13,10 +13,10 @@ class AlphaLoss(torch.nn.Module):
         (Weight decay is used for regularization via optimizer)
 
         Args:
-            - Z: Game outcome
+            - Z: game outcome
             - Pi: action probabilities derived from MCTS 
-            - V: state value predicated by network
-            - P: action probabilities derived from NN
+            - V: outcome value predicated by network
+            - P: action probabilities predicted by NN
         """
         value_loss = ((Z - V) ** 2).mean()
         policy_loss = torch.sum(-Pi * P.log(), axis=1).mean()

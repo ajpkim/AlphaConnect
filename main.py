@@ -14,7 +14,6 @@ import yaml
 from alpha_loss import AlphaLoss
 from alpha_net import AlphaNet
 from game.connect4 import Connect4
-from utils.dot_dict import DotDict
 from utils.logger import get_logger, setup_logger
 from utils.load_config import load_config
 from mcts import Node, mcts_self_play, mcts_search
@@ -27,7 +26,8 @@ parser.add_argument("--config_file", default='config/default.yaml', help='Config
 parser.add_argument("--model_dir", default='models/new_model', help='directory to save model, training, and game data')
 parser.add_argument("--checkpoint_file", default='', help='checkpoint file to load model, optimizer, scheduler, training/self-play step count.')
 parser.add_argument("--memory_file", default='', help='replay buffer memory file to load memory.')
-parser.add_argument("--log_file", default='logs/new_model_log.log', help='log file location.')
+parser.add_argument("--log_file", default='models/new_model/new_model_log.log', help='log file location.')
+
 ARGS = parser.parse_args()
 
 config = load_config(ARGS.config_file)
@@ -45,7 +45,8 @@ logger.info(f'checkpoint file: {ARGS.checkpoint_file}')
 logger.info(f'memory file: {ARGS.memory_file}')
 logger.info(f'configs: {config}')
 
-game_history_dir = ARGS.model_dir + '/game_histories'
+
+game_history_dir = ARGS.model_dir + '/game_history'
 checkpoint_dir = ARGS.model_dir + '/checkpoints'
 replay_memory_dir = ARGS.model_dir + '/replay_memory'
 # training_data_dir = ARGS.model_dir + '/training_data'

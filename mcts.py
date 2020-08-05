@@ -11,8 +11,8 @@ from game.connect4 import Connect4
 from utils.logger import get_logger
 
 
-# test_log = 'test_logs/mcts.log'
-# logger = get_logger(__name__, test_log)
+test_log = 'test_logs/mcts.log'
+logger = get_logger(__name__, test_log)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -87,7 +87,7 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet
     prior_probs = net(state.to(device))[1].detach().cpu().squeeze().numpy()
     dirichlet_noise = np.random.dirichlet([dirichlet_alpha] * len(prior_probs))
     prior_probs += dirichlet_noise
-    prior_probs[game.invalid_actions] = 0.000
+    prior_probs[game.invalid_actions] = 0.000  # mask illegal actions
 
     # make prior probabilties of valid actions sum to 1
     prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
@@ -114,7 +114,6 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
     backpropogated up the tree to account for the switch in perspective
     between parent and child nodes.
     """
-
     if game.outcome:  # leaf is a terminal node
         if game.outcome == leaf.player_id: 
             V = game.outcome
@@ -123,6 +122,9 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
         else: 
             V = -1
         backup(leaf, -V)
+    
+    # logger.info(f'Processing Leaf: {leaf}')
+    # logger.info(f'Current game state\n {game}')
 
     V = net(leaf.state.to(device))[0].item()
     leaf.P = prior_action_probs(leaf.state, net, game, dirichlet_alpha)
@@ -134,6 +136,8 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
         new_state = game_copy.state
         child_node = Node(new_state, parent=leaf, player_id=game_copy.player_turn)
         leaf.edges[action] = child_node
+    
+    # logger.info(f'Done processing: {leaf}\n')
 
     backup(leaf, -V)
 
@@ -148,8 +152,12 @@ def select_action(node, training: bool) -> int:
     Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
     of visits to each possible edge.
     """
+
+    # logger.info(f'Selecting action from: {node}')
+
     if not training:
         most_visited = max(node.edges.keys(), key=lambda x: node.edges[x].N)
+        # print(f'action: {most_visited}. visists: {node.edges[most_visited].N}')
         return most_visited
 
     actions = list(node.edges.keys())

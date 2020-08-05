@@ -2,7 +2,7 @@
 game: Connect4
 random_seed: 33
 steps: 2500
-checkpoint_freq: 100
+checkpoint_freq: 200
 
 ### MCTS params
 n_simulations: 100

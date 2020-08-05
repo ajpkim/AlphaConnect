@@ -1,8 +1,10 @@
-timer.py
-utils/dot_dict.py
-worksheet.py
 __pycache__
-models/
-logs/
+models/*
+logs/*
+
 test_logs/
-m0-20200804T153328Z-001.zip
+zips/
+dnu/
+
+worksheet.py
+

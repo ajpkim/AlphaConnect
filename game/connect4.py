@@ -59,7 +59,7 @@ class Connect4:
             self.turns += 1
             self.check_winning_move(col)
         else:
-            raise Exception(f"Illegal move. Attemped to play in column {col}. "\
+            raise Exception(f"Illegal move. Player {self.player_turn} attemped to play in column {col}. "\
                             f"Valid actions: {self.valid_actions}\n{self.board}")
                               
     def col_height(self, col):
@@ -141,6 +141,8 @@ class Connect4:
         self.history = []
         self.turns = 0
         self.outcome = None
+
+        return self
 
     def __repr__(self):
         """Return a string represetation of board state"""

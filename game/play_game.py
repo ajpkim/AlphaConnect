@@ -32,7 +32,7 @@ def play_game(game, agent_1, agent_2, shuffle_order=True, verbose=False):
         if turn == agent_1.name:
             if verbose:
                 print(game)
-                print("player 1's turn")
+                print(f"{agent_1.name}'s turn.")
             
             move = agent_1.get_next_move(game)
             if move not in game.valid_actions:
@@ -44,7 +44,7 @@ def play_game(game, agent_1, agent_2, shuffle_order=True, verbose=False):
         elif turn == agent_2.name:
             if verbose:
                 print(game)
-                print("player 2's turn")
+                print(f"{agent_2.name}'s turn.")
 
             move = agent_2.get_next_move(game)    
             if move not in game.valid_actions:

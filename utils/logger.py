@@ -1,15 +1,15 @@
 import logging
 
+FMT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+DATEFMT = '%Y-%m-%d %H:%M:%S'
 
 def setup_logger(log_file):
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(filename=log_file, level=logging.DEBUG, format=log_format)
+    logging.basicConfig(filename=log_file, level=logging.DEBUG, format=FMT, datefmt=DATEFMT)
 
 def get_file_handler(log_file, level=10):
     file_handler = logging.FileHandler(log_file, mode='a')
     file_handler.setLevel(level)
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    file_format = logging.Formatter(log_format)
+    file_format = logging.Formatter(fmt=FMT, datefmt=DATEFMT)
     file_handler.setFormatter(file_format)
     return file_handler
 

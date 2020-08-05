@@ -4,6 +4,10 @@ import torch
 
 from alpha_net import AlphaNet
 from mcts import mcts_search, Node
+from utils.logger import *
+
+test_log = 'test_logs/mcts.log'
+logger = get_logger(__name__, test_log)
 
 class Agent:
     def __init__(self, name='Name me please.'):
@@ -58,18 +62,25 @@ class AlphaAgent:
         self.current_node = None
     
     def load_model(self, checkpoint_file):
-        checkpoint = torch.load(checkpoint_file)
+        checkpoint = torch.load(checkpoint_file, map_location=("cuda" if torch.cuda.is_available() else "cpu"))
         state_dict = checkpoint['model_state_dict']
         self.net.load_state_dict(state_dict)
 
     def get_next_move(self, game):
+
+        # logger.info(f'AlphaAgent Get Next Move \n {game}\n')
+
         if len(game.history) < 2:
-            # initialize search tree
             self.current_node = Node(game.state, player_id=game.player_turn, parent=None)
         else:
-            previous_move = game.history[-1]
-            current_node = self.current_node.edges[previous_move]
+            opponent_move = game.history[-1]            
+            self.current_node = self.current_node.edges[opponent_move]
+
+            # logger.info(f'Updated current_node {self.current_node}')
+
+
         move = mcts_search(self.current_node, self.net, game, self.n_simulations, self.C_puct, self.dirichlet_alpha, self.training)
+        self.current_node = self.current_node.edges[move]
         
         return move
     
