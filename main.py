@@ -82,8 +82,8 @@ if len(trainer.replay_buffer.memory) < 500:
     trainer.save_replay_memory(replay_memory_dir + '/init_memory')
     
 for step in range(1, config.steps + 1):
-    logger.info(f'STEP {step}')
-    print('STEP', step)
+    logger.info(f'Cycle Step {step}. Total training steps: {trainer.training_step_count}')
+    print(f'Cycle Step {step} | Total training steps: {trainer.training_step_count} | {datetime.now()} ')
     game_history = trainer.self_play()
     game_histories.append(game_history)
     trainer.learn()
@@ -92,7 +92,7 @@ for step in range(1, config.steps + 1):
         logger.info('checkpointing model')
         trainer.save_checkpoint(checkpoint_dir + f'/step_{trainer.training_step_count}')
         logger.info('writing game histories')
-        with open(game_history_dir + (f'/games_{step-config.checkpoint_freq}_{step}'), 'wb') as f:
+        with open(game_history_dir + (f'/games_{trainer.self_play_count - config.checkpoint_freq}_{trainer.self_play_count}'), 'wb') as f:
             pickle.dump(game_histories, f)
         game_histories = []
         logger.info('writing replay memory')
