@@ -70,8 +70,10 @@ else:
 
 game_histories = []
 
-if len(trainer.replay_buffer.memory) < 500:
-    while len(trainer.replay_buffer.memory) < 256:
+
+
+if len(trainer.replay_buffer.memory) < 1000:  
+    while len(trainer.replay_buffer.memory) < 1000:  
         logger.info('initializing replay buffer memory with self play')
         game_history = trainer.self_play()
         game_histories.append(game_history)

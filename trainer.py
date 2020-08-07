@@ -1,3 +1,5 @@
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,7 +18,7 @@ class Trainer:
         self.game = globals()[config.game]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = AlphaNet().to(self.device)
-        self.replay_buffer = ReplayBuffer(capacity=config.memory_capacity, seed=config.random_seed)
+        self.replay_buffer = ReplayBuffer(capacity=config.start_memory_cap, seed=config.random_seed)
         self.optimizer = torch.optim.SGD(params=self.net.parameters(), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size, config.lr_gamma, -1)
         self.loss_fn = AlphaLoss()
@@ -30,9 +32,15 @@ class Trainer:
         states, Pis, Zs = mcts_self_play(self.net, game, self.config.n_simulations, self.config.C_puct, self.config.dirichlet_alpha)
         
         for state, Pi, Z in zip(states, Pis, Zs):
+            if self.config.horizontal_flip:
+                if (flip := random.choice((True, False))):
+                    state = state.flip(2)
             self.replay_buffer.push(state, Pi, Z)
         
         self.self_play_count += 1
+        if self.self_play_count == self.config.memory_step:
+            self.replay_buffer.capacity = self.config.end_memory_cap
+        
         return game.history
 
     def learn(self):
@@ -51,6 +59,7 @@ class Trainer:
         self.training_step_count += 1
         if self.training_step_count <= self.config.lr_scheduler_last_step: 
             self.scheduler.step()
+        
     
     def save_model(self, model_file):
         torch.save({'model_state_dict': self.net.state_dict()}, model_file)
@@ -66,6 +75,7 @@ class Trainer:
                     'model_state_dict': self.net.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     'scheduler_state_dict': self.scheduler.state_dict(),
+                    'replay_buffer_position': self.replay_buffer.position,
                     'training_step_count': self.training_step_count,
                     'self_play_count': self.self_play_count
                     }, checkpoint_file)
@@ -76,6 +86,7 @@ class Trainer:
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        self.replay_buffer.position = checkpoint['replay_buffer_position']
         self.training_step_count = checkpoint['training_step_count']
         self.self_play_count = checkpoint['self_play_count']
 

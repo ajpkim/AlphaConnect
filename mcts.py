@@ -55,7 +55,7 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     """
     Find a leaf node by recursively traversing the game tree.
     
-    Take actions that maximize Q + U where U is a variant of the PUCT
+    Take actions that maximize Q + U where U is a variant of the UCT
     algorithm that controls exploration. We use the negative Q of child
     nodes to account for the switch in perspective from current node to
     child node. U is large for nodes with small N and high prior probabilities
@@ -85,12 +85,14 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
 def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet_alpha: float) -> dict:
     """Return dict of prior action probabilities derived from net policy head."""
     prior_probs = net(state.to(device))[1].detach().cpu().squeeze().numpy()
-    dirichlet_noise = np.random.dirichlet([dirichlet_alpha] * len(prior_probs))
-    prior_probs += dirichlet_noise
-    prior_probs[game.invalid_actions] = 0.000  # mask illegal actions
+    dirichlet_noise = np.zeros(7)
+    dirichlet_vals = np.random.dirichlet([dirichlet_alpha] * len(game.valid_actions))
+    dirichlet_noise[game.valid_actions] = dirichlet_vals
+    prior_probs = (0.75 * prior_probs) + (0.25 * dirichlet_noise)
+    prior_probs[game.invalid_actions] = 0.0  # mask illegal actions
 
     # make prior probabilties of valid actions sum to 1
-    prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
+    prior_probs /= prior_probs.sum()
     prior_probs = dict(enumerate(prior_probs))
 
     return prior_probs
@@ -110,9 +112,7 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
     Action probabilities are assigned as prior probabilities for all 
     leaf node edges. All possible edges and resulting nodes of the 
     leaf node are initilized. Traverse backwards up the tree to update
-    all nodes along the path to the leaf node. Negative of value is
-    backpropogated up the tree to account for the switch in perspective
-    between parent and child nodes.
+    all nodes along the path to the leaf node.
     """
     if game.outcome:  # leaf is a terminal node
         if game.outcome == leaf.player_id: 
@@ -121,7 +121,7 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
             V = 0
         else: 
             V = -1
-        backup(leaf, -V)
+        backup(leaf, V)
     
     # logger.info(f'Processing Leaf: {leaf}')
     # logger.info(f'Current game state\n {game}')
@@ -139,7 +139,7 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
     
     # logger.info(f'Done processing: {leaf}\n')
 
-    backup(leaf, -V)
+    backup(leaf, V)
 
 def select_action(node, training: bool) -> int:
     """
