@@ -19,7 +19,8 @@ from utils.load_config import load_config
 from mcts import Node, mcts_self_play, mcts_search
 from trainer import Trainer
 
-### consider adding some horizontal rotations when adding states to replay buffer to increase diversity of training data.
+
+start_time = datetime.now()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", default='config/default.yaml', help='Configuration file location.')
@@ -31,6 +32,14 @@ parser.add_argument("--log_file", default='models/new_model/new_model_log.log', 
 ARGS = parser.parse_args()
 
 config = load_config(ARGS.config_file)
+
+game_history_dir = ARGS.model_dir + '/game_history'
+checkpoint_dir = ARGS.model_dir + '/checkpoints'
+replay_memory_dir = ARGS.model_dir + '/replay_memory'
+
+for directory in [ARGS.model_dir, game_history_dir, checkpoint_dir, replay_memory_dir]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 torch.manual_seed(config.random_seed)
 np.random.seed(config.random_seed)
@@ -45,17 +54,6 @@ logger.info(f'checkpoint file: {ARGS.checkpoint_file}')
 logger.info(f'memory file: {ARGS.memory_file}')
 logger.info(f'configs: {config}')
 
-
-game_history_dir = ARGS.model_dir + '/game_history'
-checkpoint_dir = ARGS.model_dir + '/checkpoints'
-replay_memory_dir = ARGS.model_dir + '/replay_memory'
-# training_data_dir = ARGS.model_dir + '/training_data'
-
-for directory in [ARGS.model_dir, game_history_dir, checkpoint_dir, replay_memory_dir]: #, training_data_dir]:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-        logger.info(f'created dir: {directory}')
-
 trainer = Trainer(config)
 
 if ARGS.checkpoint_file:
@@ -64,33 +62,35 @@ if ARGS.checkpoint_file:
     logger.info('loading memory')
     trainer.load_replay_memory(ARGS.memory_file)
 else: 
-    logger.info('saving initial model state')
-    trainer.save_checkpoint(checkpoint_dir + '/initialization')
-
+    logger.info('checkpointing initial model state')
+    trainer.save_checkpoint(checkpoint_dir + '/initial_state')
 
 game_histories = []
 
-
-
-if len(trainer.replay_buffer.memory) < 1000:  
+if len(trainer.replay_buffer.memory) < 1000:
+    print('Initializing replay buffer')  
     while len(trainer.replay_buffer.memory) < 1000:  
         logger.info('initializing replay buffer memory with self play')
         game_history = trainer.self_play()
         game_histories.append(game_history)
     logger.info('writing initial game histories')
-    with open(game_history_dir + '/init_game_histories', mode='wb') as f:
+    with open(game_history_dir + f'/games_0_{trainer.self_play_count}', mode='wb') as f:
         pickle.dump(game_histories, f)
+    game_histories = []
     logger.info('writing initial replay memory')
     trainer.save_replay_memory(replay_memory_dir + '/init_memory')
     
 for step in range(1, config.steps + 1):
-    logger.info(f'Cycle Step {step}. Total training steps: {trainer.training_step_count}')
-    print(f'Cycle Step {step} | Total training steps: {trainer.training_step_count} | {datetime.now()} ')
+    update = f'Cycle Step {step} | Total training steps {trainer.training_step_count} | Run time {datetime.now()-start_time}'
+    logger.info(update)
+    print(update)
+
     game_history = trainer.self_play()
     game_histories.append(game_history)
     trainer.learn()
 
     if step % config.checkpoint_freq == 0:
+        print('checkpointing model')
         logger.info('checkpointing model')
         trainer.save_checkpoint(checkpoint_dir + f'/step_{trainer.training_step_count}')
         logger.info('writing game histories')

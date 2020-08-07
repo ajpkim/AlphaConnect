@@ -75,7 +75,7 @@ class Trainer:
                     'model_state_dict': self.net.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     'scheduler_state_dict': self.scheduler.state_dict(),
-                    'replay_buffer_position': self.replay_buffer.position,
+                    # 'replay_buffer_position': self.replay_buffer.position,
                     'training_step_count': self.training_step_count,
                     'self_play_count': self.self_play_count
                     }, checkpoint_file)
@@ -86,18 +86,28 @@ class Trainer:
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        self.replay_buffer.position = checkpoint['replay_buffer_position']
+        # self.replay_buffer.position = checkpoint['replay_buffer_position']
         self.training_step_count = checkpoint['training_step_count']
         self.self_play_count = checkpoint['self_play_count']
 
     def save_replay_memory(self, memory_file):
-        torch.save(self.replay_buffer.memory, memory_file)
-        
+        torch.save({'replay_memory': self.replay_buffer.memory,
+                    'capacity': self.replay_buffer.capacity,
+                    'position': self.replay_buffer.position
+                    }, memory_file)
+            
     def load_replay_memory(self, memory_file):
-        memory = torch.load(memory_file, map_location='cpu')  # get sent to gpu during learn step. Otherwise some memories are on cpu, others gpu.
-        for state, Pi, Z in memory:
+        data = torch.load(memory_file, map_location='cpu')  # get sent to gpu during learn step. Otherwise some memories are on cpu, others gpu.
+        self.replay_buffer.capacity = data['capacity']
+        for state, Pi, Z in data['replay_memory']:
             self.replay_buffer.push(state, Pi, Z)
+        self.replay_buffer.position = data['position']  # load all the data, THEN set position
 
+
+    # def load_replay_memory(self, memory_file):
+    #     data = torch.load(memory_file, map_location='cpu')  # get sent to gpu during learn step. Otherwise some memories are on cpu, others gpu.
+    #     for state, Pi, Z in data:
+    #         self.replay_buffer.push(state, Pi, Z)
 
     def __repr__(self):
         return f'<Trainer. self play count: {self.self_play_count}, training steps: {self.training_step_count}>'

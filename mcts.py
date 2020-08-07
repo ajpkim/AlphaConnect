@@ -92,7 +92,7 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet
     prior_probs[game.invalid_actions] = 0.0  # mask illegal actions
 
     # make prior probabilties of valid actions sum to 1
-    prior_probs /= prior_probs.sum()
+    prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
     prior_probs = dict(enumerate(prior_probs))
 
     return prior_probs
