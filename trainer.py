@@ -33,7 +33,7 @@ class Trainer:
         
         for state, Pi, Z in zip(states, Pis, Zs):
             if self.config.horizontal_flip:
-                if (flip := random.choice((True, False))):
+                if random.choice((True, False)):
                     state = state.flip(2)
             self.replay_buffer.push(state, Pi, Z)
         
