@@ -6,5 +6,7 @@ test_logs/
 zips/
 dnu/
 
+m2/*
+
 worksheet.py
 

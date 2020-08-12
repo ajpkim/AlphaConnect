@@ -11,7 +11,7 @@ class ReplayBuffer:
         self.seed = random.seed(seed)
     
     def push(self, state, Pi, Z):
-        if len(self.memory) < self.capacity:
+        if len(self.memory) <= self.position:
             self.memory.append(None)  # avoid index errors below
         self.memory[self.position] = GameData(state, Pi, Z)
         self.position = (self.position + 1) % self.capacity

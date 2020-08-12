@@ -8,8 +8,8 @@ from alpha_net import AlphaNet
 from mcts import mcts_search, Node, backup, select_action, select_leaf
 from utils.logger import *
 
-# test_log = 'test_logs/mcts.log'
-# logger = get_logger(__name__, test_log)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class Agent:
     def __init__(self, name='Name me please.'):
@@ -56,7 +56,7 @@ class HumanPlayer:
 
 class AlphaAgent:
     def __init__(self, n_simulations=100, C_puct=1.0, dirichlet_alpha=0.75, training=False, name='Alpha agent' ):
-        self.net = AlphaNet()
+        self.net = AlphaNet().to(device)
         self.name = name
         self.n_simulations = n_simulations
         self.dirichlet_alpha = dirichlet_alpha
@@ -71,16 +71,11 @@ class AlphaAgent:
 
     def get_next_move(self, game):
 
-        # logger.info(f'AlphaAgent Get Next Move \n {game}\n')
-
         if len(game.history) < 2:
             self.current_node = Node(game.state, player_id=game.player_turn, parent=None)
         else:
             opponent_move = game.history[-1]            
             self.current_node = self.current_node.edges[opponent_move]
-
-            # logger.info(f'Updated current_node {self.current_node}')
-
 
         move = mcts_search(self.current_node, self.net, game, self.n_simulations, self.C_puct, self.dirichlet_alpha, self.training)
         self.current_node = self.current_node.edges[move]
@@ -88,12 +83,12 @@ class AlphaAgent:
         return move
     
     def __repr__(self):
-        return '<AlphaNet agent>'
+        return f'<AlphaNet agent: {self.name}>'
 
 class NetAgent:
     def __init__(self, name='NN only agent'):
         self.name = name
-        self.net = AlphaNet()
+        self.net = AlphaNet().to(device)
     
     def load_model(self, checkpoint_file):
         checkpoint = torch.load(checkpoint_file, map_location=("cuda" if torch.cuda.is_available() else "cpu"))
@@ -106,7 +101,7 @@ class NetAgent:
         return action
 
     def __repr__(self):
-        return str(self.name)
+        return f'<MCTS agent: {self.name}>'
 
 class MCTSAgent:
     def __init__(self, n_simulations=100, name='MCTS only agent'):
@@ -143,4 +138,7 @@ class MCTSAgent:
         self.current_node = self.current_node.edges[action]
         
         return action
+
+    def __repr__(self):
+        return f'<MCTS agent>'
 

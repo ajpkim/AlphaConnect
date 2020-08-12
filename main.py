@@ -94,7 +94,7 @@ for step in range(1, config.steps + 1):
         logger.info('checkpointing model')
         trainer.save_checkpoint(checkpoint_dir + f'/step_{trainer.training_step_count}')
         logger.info('writing game histories')
-        with open(game_history_dir + (f'/games_{trainer.self_play_count - config.checkpoint_freq}_{trainer.self_play_count}'), 'wb') as f:
+        with open(game_history_dir + (f'/games_{trainer.self_play_count - config.checkpoint_freq + 1}_{trainer.self_play_count}'), 'wb') as f:
             pickle.dump(game_histories, f)
         game_histories = []
         logger.info('writing replay memory')
