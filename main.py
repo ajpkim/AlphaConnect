@@ -24,10 +24,10 @@ start_time = datetime.now()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", default='config/default.yaml', help='Configuration file location.')
-parser.add_argument("--model_dir", default='models/new_model', help='directory to save model, training, and game data')
+parser.add_argument("--model_dir", default='new_model', help='directory to save model, training, and game data')
 parser.add_argument("--checkpoint_file", default='', help='checkpoint file to load model, optimizer, scheduler, training/self-play step count.')
 parser.add_argument("--memory_file", default='', help='replay buffer memory file to load memory.')
-parser.add_argument("--log_file", default='models/new_model/new_model_log.log', help='log file location.')
+parser.add_argument("--log_file", default='new_model_log.log', help='log file location.')
 
 ARGS = parser.parse_args()
 

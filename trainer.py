@@ -1,5 +1,7 @@
 import random
 
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +11,7 @@ from alpha_net import AlphaNet
 from game.connect4 import Connect4
 from mcts import mcts_self_play
 from replay_buffer import ReplayBuffer
+from utils.logger import get_logger
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -35,6 +38,7 @@ class Trainer:
             if self.config.horizontal_flip:
                 if random.choice((True, False)):
                     state = state.flip(2)
+                    Pi = np.flip(Pi)
             self.replay_buffer.push(state, Pi, Z)
         
         self.self_play_count += 1

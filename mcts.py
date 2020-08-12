@@ -11,9 +11,7 @@ from game.connect4 import Connect4
 from utils.logger import get_logger
 
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 class Node:
     node_id = 0
     def __init__(self, state: np.array, player_id: int, parent=None):
@@ -41,13 +39,19 @@ class Node:
     def Pi(self):
         """Improved action probabilities derived from MCTS."""
         policy_probs = np.zeros(7) # adjust to game.actions if want to use for other board dims or games
+        if self.N <= 1:
+            return policy_probs
         for action in range(len(policy_probs)):  
             if action in self.edges:
-                policy_probs[action] = (self.edges[action].N / self.N)
+                policy_probs[action] = (self.edges[action].N / (self.N-1))
         return policy_probs
     
     def __repr__(self):
-        return f'MCTS Node for player {self.player_id}, ID: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}, P: {self.P}'
+        s = f'MCTS Node for player {self.player_id}, ID: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}'
+        s = s + '\nChildren Nodes:\n'
+        for action in self.edges:
+            s = s + f'Action {action}: ID={self.edges[action].id}, P={self.P[action]:.3f}, N={self.edges[action].N}, Q={self.edges[action].Q:.3f}, Pi={self.Pi[action]:.3f}\n'
+        return s
 
 def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     """
@@ -60,7 +64,6 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     and asympotically selects paths with high Q vals. A leaf node indicates a
     terminal or unexplored state.
     """
-
     # base case: return discovered leaf node.
     if not node.explored:
         return node
@@ -100,7 +103,7 @@ def backup(node: Node, V: float) -> None:
     node.N += 1
     node.W += V
     if node.parent:
-        backup(node.parent, -V)
+        backup(node.parent, -V)    
 
 def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: float) -> None:
     """
@@ -145,20 +148,23 @@ def select_action(node, training: bool) -> int:
     Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
     of visits to each possible edge.
     """
-
-    # logger.info(f'Selecting action from: {node}')
-
     if not training:
         most_visited = max(node.edges.keys(), key=lambda x: node.edges[x].N)
         return most_visited
 
     actions = list(node.edges.keys())
     next_action = random.choices(actions, node.Pi[actions])[0]
+
     return next_action
+
+
+#####
+## MCTS SEARCH IS PRIME FOR MULTIPROCESSING FOR PARRELIZING THE SIMULATIONS
 
 def mcts_search(root: Node, net: AlphaNet, game: Connect4, n_simulations: int,
                         C_puct: float, dirichlet_alpha: float, training: bool) -> int:
     """Return selected action after executing given number of MCTS simulations from root node"""
+    root.parent = None  # stop updating discarded parts of search tree
     for simulation in range(n_simulations):
         game_copy = copy.deepcopy(game)
         leaf = select_leaf(root, game_copy, C_puct)
@@ -186,7 +192,7 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: fl
         
         game.make_move(action)
         current_node = current_node.edges[action]
-    
+
     p1_move_count = len(Zs[::2])
     p2_move_count = len(Zs[1::2])
     
@@ -197,7 +203,6 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: fl
         Zs[::2] = [-1] * p1_move_count
         Zs[1::2] = [1] * p2_move_count
     
-
     return states, Pis, Zs
 
     

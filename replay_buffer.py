@@ -24,6 +24,3 @@ class ReplayBuffer:
 
     def __repr__(self):
         return f'ReplayBuffer storing {len(self.memory)} training data points'
-
-if __name__ == '__main__':
-    pass

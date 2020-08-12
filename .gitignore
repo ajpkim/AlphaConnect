@@ -3,10 +3,11 @@ models/*
 logs/*
 
 test_logs/
-zips/
+testing/
 dnu/
 
-m2/*
+m2/
+
 
 worksheet.py
 
