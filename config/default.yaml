@@ -1,23 +1,26 @@
 ### Global params
 game: Connect4
-random_seed: 3
+random_seed: 9
 steps: 500
-checkpoint_freq: 100
+checkpoint_freq: 200
 
 ### MCTS params
 n_simulations: 200
 C_puct: 2.0
 dirichlet_alpha: 0.75
 
+### Eval params
+eval: True
+eval_sims: 50
+eval_episodes: 100
+
 ### Training params
 batch_size: 512
-start_memory_cap: 10000
-end_memory_cap: 20000
-memory_step: 3000
+memory_capacity: 6000
 lr: .2
 lr_gamma: 0.1
 lr_step_size: 3000
-lr_scheduler_last_step: 12000
+lr_scheduler_last_step: 11999   # hold off on moving past .0002
 momentum: 0.9
 weight_decay: 0.0001
 horizontal_flip: True

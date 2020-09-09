@@ -11,6 +11,9 @@ from game.connect4 import Connect4
 from utils.logger import get_logger
 
 
+# log_file = 'mcts_v6.log'
+# logger = get_logger(__name__, log_file)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Node:
     node_id = 0
@@ -61,23 +64,29 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     algorithm that controls exploration. We use the negative Q of child
     nodes to account for the switch in perspective from current node to
     child node. U is large for nodes with small N and high prior probabilities
-    and asympotically selects paths with high Q vals. A leaf node indicates a
+    and asymptotically selects paths with high Q vals. A leaf node indicates a
     terminal or unexplored state.
     """
     # base case: return discovered leaf node.
     if not node.explored:
         return node
     
+    # logger.info(f'SELECTING LEAF FOR {node}')
+    # logger.info(f'state:\n{game}')
+
+
     # recursively take actions that maximize Q + U until a leaf node is found.
     highest_score = -float('inf')
     next_action = None
     for action in node.edges:
-        Q = -node.edges[action].Q  
+        Q = node.edges[action].Q  
         U = C_puct * node.P[action] * (np.sqrt(node.N) / (1 + node.edges[action].N))
         if Q + U > highest_score:
             highest_score = Q + U
             next_action = action
     
+    # logger.info(f'selected {next_action}')
+
     game.make_move(next_action)
     next_node = node.edges[next_action]
 
@@ -92,7 +101,7 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet
     prior_probs = (0.75 * prior_probs) + (0.25 * dirichlet_noise)
     prior_probs[game.invalid_actions] = 0.0  # mask illegal actions
 
-    # make prior probabilties of valid actions sum to 1
+    # make prior probabilities of valid actions sum to 1
     prior_probs[game.valid_actions] = prior_probs[game.valid_actions] / prior_probs.sum()
     prior_probs = dict(enumerate(prior_probs))
 
@@ -100,8 +109,12 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet
 
 def backup(node: Node, V: float) -> None:
     """Recursively update the nodes along the path taken to reach given node"""
+    
+    # logger.info(f'BACKUP called on Node {node.id}, with V={V}') 
+    
     node.N += 1
     node.W += V
+    
     if node.parent:
         backup(node.parent, -V)    
 
@@ -112,30 +125,39 @@ def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: flo
     Query NN for value and action probabilities for leaf state.
     Action probabilities are assigned as prior probabilities for all 
     leaf node edges. All possible edges and resulting nodes of the 
-    leaf node are initilized. Traverse backwards up the tree to update
+    leaf node are initialized. Traverse backwards up the tree to update
     all nodes along the path to the leaf node.
     """
+
+
+    # logger.info(f'\nPROCESSING LEAF: {leaf}')
+
+
     if game.outcome:  # leaf is a terminal node
-        if game.outcome == leaf.player_id: 
-            V = game.outcome
+
+        # logger.info('LEAF IS TERMINAL')
+
+        if game.outcome == leaf.parent.player_id: 
+            V = 1
         elif game.outcome == 'tie': 
             V = 0
         else: 
             V = -1
         backup(leaf, V)
-    
-    V = net(leaf.state.to(device))[0].item()
-    leaf.P = prior_action_probs(leaf.state, net, game, dirichlet_alpha)
 
-    # initialize all possible edges and resulting child nodes.
-    for action in game.valid_actions:
-        game_copy = copy.deepcopy(game)
-        game_copy.make_move(action)
-        new_state = game_copy.state
-        child_node = Node(new_state, parent=leaf, player_id=game_copy.player_turn)
-        leaf.edges[action] = child_node
+    else:
+        V = net(leaf.state.to(device))[0].item()
+        leaf.P = prior_action_probs(leaf.state, net, game, dirichlet_alpha)
 
-    backup(leaf, V)
+        # initialize all possible edges and resulting child nodes.
+        for action in game.valid_actions:
+            game_copy = copy.deepcopy(game)
+            game_copy.make_move(action)
+            new_state = game_copy.state
+            child_node = Node(new_state, parent=leaf, player_id=game_copy.player_turn)
+            leaf.edges[action] = child_node
+
+        backup(leaf, V)
 
 def select_action(node, training: bool) -> int:
     """
@@ -144,7 +166,7 @@ def select_action(node, training: bool) -> int:
     If training, select an action from the current state proportional to  
     visit count. Otherwise, select the most visited action. Selecting action
     proportional to visits mimics a constant temperature setting of 1.0 in
-    regards to AlphaZero action selection equatio: 
+    regards to AlphaZero action selection equation: 
     Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
     of visits to each possible edge.
     """
@@ -165,13 +187,17 @@ def mcts_search(root: Node, net: AlphaNet, game: Connect4, n_simulations: int,
                         C_puct: float, dirichlet_alpha: float, training: bool) -> int:
     """Return selected action after executing given number of MCTS simulations from root node"""
     root.parent = None  # stop updating discarded parts of search tree
+
+    # logger.info('-------------------------------------\n\n')
+    # logger.info('NEW MCTS FROM:')
+
     for simulation in range(n_simulations):
         game_copy = copy.deepcopy(game)
         leaf = select_leaf(root, game_copy, C_puct)
         process_leaf(leaf, net, game_copy, dirichlet_alpha)  
         
     action = select_action(root, training)
-
+    
     return action
 
 def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: float, dirichlet_alpha: float) -> tuple:
@@ -193,15 +219,14 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: fl
         game.make_move(action)
         current_node = current_node.edges[action]
 
-    p1_move_count = len(Zs[::2])
-    p2_move_count = len(Zs[1::2])
-    
+    # logger.info(f'\n\n GAME OUTCOME: {game.outcome}')
+
     if game.outcome == 1:
-        Zs[::2] = [1] * p1_move_count
-        Zs[1::2] = [-1] * p2_move_count
+        Zs[::2] = [1] * len(Zs[::2])
+        Zs[1::2] = [-1] * len(Zs[1::2])
     elif game.outcome == 2: 
-        Zs[::2] = [-1] * p1_move_count
-        Zs[1::2] = [1] * p2_move_count
+        Zs[::2] = [-1] * len(Zs[::2])
+        Zs[1::2] = [1] * len(Zs[1::2])
     
     return states, Pis, Zs
 

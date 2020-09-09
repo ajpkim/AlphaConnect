@@ -36,6 +36,7 @@ class RandomPlayer:
     def __repr__(self):
         return '<Random agent>'
 
+
 class HumanPlayer:
     def __init__(self, name='Human agent'):
         self.name = name
@@ -54,8 +55,25 @@ class HumanPlayer:
         return f'<{self.name}>'
 
 
+class Row0Player:
+    def __init__(self, name='Row 0 Player'):
+        self.name = name    
+
+    def get_next_move(self, game):
+        move = 0
+        while move not in game.valid_actions:
+            move += 1
+        return move
+
+    def __len__(self):
+        return 1
+    
+    def __repr__(self):
+        return f'<{self.name}>'
+
+
 class AlphaAgent:
-    def __init__(self, n_simulations=100, C_puct=1.0, dirichlet_alpha=0.75, training=False, name='Alpha agent' ):
+    def __init__(self, n_simulations=100, C_puct=2.0, dirichlet_alpha=0.75, training=False, name='Alpha agent' ):
         self.net = AlphaNet().to(device)
         self.name = name
         self.n_simulations = n_simulations
@@ -85,6 +103,7 @@ class AlphaAgent:
     def __repr__(self):
         return f'<AlphaNet agent: {self.name}>'
 
+
 class NetAgent:
     def __init__(self, name='NN only agent'):
         self.name = name
@@ -103,6 +122,7 @@ class NetAgent:
     def __repr__(self):
         return f'<MCTS agent: {self.name}>'
 
+
 class MCTSAgent:
     def __init__(self, n_simulations=100, name='MCTS only agent'):
         self.n_simulations = n_simulations
@@ -118,10 +138,12 @@ class MCTSAgent:
                 random_action = random.choice(game_copy.valid_actions)
                 game_copy.make_move(random_action)
             
-            # Nodes only count the number of downstream wins  
             if game.outcome == leaf.player_id:
                 outcome = 1
-            else: outcome = 0
+            elif game.outcome == 'tie':
+                outcome = 0
+            else: 
+                outcome = -1
 
             backup(node, outcome)
 

@@ -2,19 +2,33 @@ import numpy as np
 
 from game.play_game import play_game
 
-def evaluate(game, agent_1, agent_2, n_episodes):
-	"""Function for comparing 2 agents. Returns dicts of totals and percentages."""
+def evaluate(Game, agent_1, agent_2, n_episodes):
+	"""
+	Function for comparing 2 agents. 
 	
-	results, percentages = {}, {}
-	outcomes = np.array([play_game(game(), agent_1, agent_2) for n in range(n_episodes)])
+	Args:
+		- Game: Game class to evaluate agents on
+		- agents: agents which implement get_next_move()
+		- n_episodes: number of games to play with each agent as first player
+			(total games played is n_episodes * 2)
 
-	results[agent_1.name] = (outcomes == agent_1.name).sum()
-	results[agent_2.name] = (outcomes == agent_2.name).sum()
-	results['tie'] = len(outcomes) - results[agent_1.name] - results[agent_2.name]
+	Returns:
+		results : {k=player1 agent, v=results}"""
 
-	percentages[agent_1.name] = round(results[agent_1.name] / n_episodes, 4)
-	percentages[agent_2.name] = round(results[agent_2.name] / n_episodes, 4)
-	percentages['tie'] = round(results['tie'] / n_episodes, 4)
-	
-	return results, percentages
+	results = {}
 
+	a1_as_p1_results = {}
+	outcomes = np.array([play_game(Game(), agent_1, agent_2, shuffle_order=False) for n in range(n_episodes)])
+	a1_as_p1_results[agent_1.name] = (outcomes == agent_1.name).sum()
+	a1_as_p1_results[agent_2.name] = (outcomes == agent_2.name).sum()
+	a1_as_p1_results['tie'] = (outcomes == 'tie').sum()
+	results[f"{agent_1.name} as p1"] = a1_as_p1_results
+
+	a2_as_p1_results = {}
+	outcomes = np.array([play_game(Game(), agent_2, agent_1, shuffle_order=False) for n in range(n_episodes)])
+	a2_as_p1_results[agent_1.name] = (outcomes == agent_1.name).sum()
+	a2_as_p1_results[agent_2.name] = (outcomes == agent_2.name).sum()
+	a2_as_p1_results['tie'] = len(outcomes) - a2_as_p1_results[agent_1.name] - a2_as_p1_results[agent_2.name]
+	results[f"{agent_2.name} as p1"] = a2_as_p1_results
+
+	return results

@@ -1,6 +1,5 @@
 import random
 
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,7 +8,10 @@ import torch.nn.functional as F
 from alpha_loss import AlphaLoss
 from alpha_net import AlphaNet
 from game.connect4 import Connect4
+
 from mcts import mcts_self_play
+# from testing.mcts_with_logging import mcts_self_play
+
 from replay_buffer import ReplayBuffer
 from utils.logger import get_logger
 
@@ -21,19 +23,19 @@ class Trainer:
         self.game = globals()[config.game]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = AlphaNet().to(self.device)
-        self.replay_buffer = ReplayBuffer(capacity=config.start_memory_cap, seed=config.random_seed)
+        self.replay_buffer = ReplayBuffer(capacity=config.start_memory_cap, seed=config.random_seed)  #use if want to vary buffer size
+        self.replay_buffer = ReplayBuffer(capacity=config.memory_capacity, seed=config.random_seed)
         self.optimizer = torch.optim.SGD(params=self.net.parameters(), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size, config.lr_gamma, -1)
         self.loss_fn = AlphaLoss()
         self.training_step_count = 0
         self.self_play_count = 0
 
-
     def self_play(self):
         """Execute one game of self play and store training data in replay buffer."""
         game = self.game()
         states, Pis, Zs = mcts_self_play(self.net, game, self.config.n_simulations, self.config.C_puct, self.config.dirichlet_alpha)
-        
+
         for state, Pi, Z in zip(states, Pis, Zs):
             if self.config.horizontal_flip:
                 if random.choice((True, False)):
@@ -42,8 +44,9 @@ class Trainer:
             self.replay_buffer.push(state, Pi, Z)
         
         self.self_play_count += 1
-        if self.self_play_count == self.config.memory_step:
-            self.replay_buffer.capacity = self.config.end_memory_cap
+
+        # if self.self_play_count == self.config.memory_step:   # No longer switching size of replay buffer
+        #     self.replay_buffer.capacity = self.config.end_memory_cap
         
         return game.history
 
@@ -69,7 +72,7 @@ class Trainer:
         torch.save({'model_state_dict': self.net.state_dict()}, model_file)
     
     def load_model(self, model_file):
-        data = torch.load(mdoel_file, map_location=self.device)
+        data = torch.load(model_file, map_location=self.device)
         state_dict = data['state_dict']
         self.net.load_state_dict(state_dict)
 

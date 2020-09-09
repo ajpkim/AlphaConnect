@@ -1,12 +1,13 @@
 __pycache__
-models/*
-logs/*
+models/
+logs/
 
 test_logs/
 testing/
 dnu/
 
 m2/
+m3/
 
 
 worksheet.py

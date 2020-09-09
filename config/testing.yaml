@@ -12,7 +12,7 @@ dirichlet_alpha: 0.75
 ### Training params
 batch_size: 512
 start_memory_cap: 10000
-end_memory_cap: 20000
+end_memory_cap: 10000
 memory_step: 4000
 lr: .2
 lr_gamma: 0.1
