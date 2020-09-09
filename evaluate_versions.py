@@ -36,7 +36,6 @@ def evaluate_versions(v1, v2, log_file, n_sims, n_episodes):
     run_time = (end - start)/60
     print(f'Run time: {run_time} mins')
 
-    print('Done')
 
 
 if __name__ == '__main__':
@@ -51,3 +50,4 @@ if __name__ == '__main__':
 
     evaluate_versions(**kwargs)
 
+    print('Done')

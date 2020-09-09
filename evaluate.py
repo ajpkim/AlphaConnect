@@ -28,7 +28,7 @@ def evaluate(Game, agent_1, agent_2, n_episodes):
 	outcomes = np.array([play_game(Game(), agent_2, agent_1, shuffle_order=False) for n in range(n_episodes)])
 	a2_as_p1_results[agent_1.name] = (outcomes == agent_1.name).sum()
 	a2_as_p1_results[agent_2.name] = (outcomes == agent_2.name).sum()
-	a2_as_p1_results['tie'] = len(outcomes) - a2_as_p1_results[agent_1.name] - a2_as_p1_results[agent_2.name]
+	a2_as_p1_results['tie'] = (outcomes == 'tie').sum()
 	results[f"{agent_2.name} as p1"] = a2_as_p1_results
 
 	return results

@@ -23,7 +23,7 @@ class Trainer:
         self.game = globals()[config.game]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = AlphaNet().to(self.device)
-        self.replay_buffer = ReplayBuffer(capacity=config.start_memory_cap, seed=config.random_seed)  #use if want to vary buffer size
+        # self.replay_buffer = ReplayBuffer(capacity=config.start_memory_cap, seed=config.random_seed)  #use if want to vary buffer size
         self.replay_buffer = ReplayBuffer(capacity=config.memory_capacity, seed=config.random_seed)
         self.optimizer = torch.optim.SGD(params=self.net.parameters(), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size, config.lr_gamma, -1)
