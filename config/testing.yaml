@@ -14,7 +14,6 @@ eval: True
 eval_sims: 2
 eval_episodes: 10
 
-
 ### Training params
 batch_size: 10
 memory_capacity: 1000
