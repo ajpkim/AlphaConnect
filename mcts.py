@@ -61,9 +61,7 @@ def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
     Find a leaf node by recursively traversing the game tree.
     
     Take actions that maximize Q + U where U is a variant of the UCT
-    algorithm that controls exploration. We use the negative Q of child
-    nodes to account for the switch in perspective from current node to
-    child node. U is large for nodes with small N and high prior probabilities
+    algorithm that controls exploration. U is large for nodes with small N and high prior probabilities
     and asymptotically selects paths with high Q vals. A leaf node indicates a
     terminal or unexplored state.
     """
