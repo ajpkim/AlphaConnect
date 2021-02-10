@@ -3,24 +3,24 @@ game: Connect4
 random_seed: 333
 
 ### MCTS params
-n_simulations: 200
+n_simulations: 100
 C_puct: 2.0
 dirichlet_alpha: 0.75
 
 ### Eval params
-eval_sims: 200
+eval_sims: 100
 eval_episodes: 100
 
 ### Training params
-batch_size: 512
-memory_init_capacity: 2500
+batch_size: 256
+memory_init_capacity: 2000
 memory_full_capacity: 5000
 memory_step: 5000
 
 lr: .2
 lr_gamma: 0.1
-lr_step_size: 10000
-lr_scheduler_last_step: 40001   # hold off on moving past .0002
+lr_step_size: 7500
+lr_scheduler_last_step: 30001   # pause at .0002
 
 momentum: 0.9
 weight_decay: 0.0001
