@@ -8,12 +8,8 @@ import torch.nn.functional as F
 from alpha_loss import AlphaLoss
 from alpha_net import AlphaNet
 from game.connect4 import Connect4
-
 from mcts import mcts_self_play
-# from testing.mcts_with_logging import mcts_self_play
-
 from replay_buffer import ReplayBuffer
-from utils.logger import get_logger
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -23,12 +19,11 @@ class Trainer:
         self.game = globals()[config.game]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = AlphaNet().to(self.device)
-        self.replay_buffer = ReplayBuffer(capacity=config.start_memory_capacity, seed=config.random_seed)  #use if want to vary buffer size
-        # self.replay_buffer = ReplayBuffer(capacity=config.memory_capacity, seed=config.random_seed)
+        self.replay_buffer = ReplayBuffer(capacity=config.memory_init_capacity, seed=config.random_seed)
         self.optimizer = torch.optim.SGD(params=self.net.parameters(), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size, config.lr_gamma, -1)
         self.loss_fn = AlphaLoss()
-        self.training_step_count = 0
+        self.training_steps = 0
         self.self_play_count = 0
 
     def self_play(self):
@@ -42,12 +37,7 @@ class Trainer:
                     state = state.flip(2)
                     Pi = np.flip(Pi)
             self.replay_buffer.push(state, Pi, Z)
-        
-        self.self_play_count += 1
 
-        if self.self_play_count == self.config.memory_step:
-            self.replay_buffer.capacity = self.config.end_memory_capacity
-        
         return game.history
 
     def learn(self):
@@ -63,44 +53,42 @@ class Trainer:
         loss.backward()
         self.optimizer.step()
 
-        self.training_step_count += 1
-        if self.training_step_count <= self.config.lr_scheduler_last_step: 
+        self.training_steps += 1
+
+        if self.training_steps <= self.config.lr_scheduler_last_step:
             self.scheduler.step()
-        
-    
+
+        if self.training_steps == self.config.memory_step:
+            self.replay_buffer.capacity = self.config.memory_full_capacity
+
     def save_model(self, model_file):
         torch.save({'model_state_dict': self.net.state_dict()}, model_file)
-    
-    def load_model(self, model_file):
-        data = torch.load(model_file, map_location=self.device)
-        state_dict = data['state_dict']
-        self.net.load_state_dict(state_dict)
 
-    def save_checkpoint(self, checkpoint_file):        
-        
+    def load_model(self, model_file):
+        checkpoint = torch.load(model_file, map_location=self.device)
+        self.net.load_state_dict(checkpoint['model_state_dict'])
+
+    def save_checkpoint(self, checkpoint_file):
         torch.save({
                     'model_state_dict': self.net.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     'scheduler_state_dict': self.scheduler.state_dict(),
-                    'training_step_count': self.training_step_count,
-                    'self_play_count': self.self_play_count
+                    'training_steps': self.training_steps,
                     }, checkpoint_file)
-    
-    def load_checkpoint(self, checkpoint_file):
 
+    def load_checkpoint(self, checkpoint_file):
         checkpoint = torch.load(checkpoint_file, map_location=self.device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        self.training_step_count = checkpoint['training_step_count']
-        self.self_play_count = checkpoint['self_play_count']
+        self.training_steps = checkpoint['training_steps']
 
     def save_replay_memory(self, memory_file):
         torch.save({'replay_memory': self.replay_buffer.memory,
                     'capacity': self.replay_buffer.capacity,
                     'position': self.replay_buffer.position
                     }, memory_file)
-            
+
     def load_replay_memory(self, memory_file):
         data = torch.load(memory_file, map_location='cpu')  # get sent to gpu during learn step. Otherwise some memories are on cpu, others gpu.
         self.replay_buffer.capacity = data['capacity']
@@ -109,7 +97,4 @@ class Trainer:
         self.replay_buffer.position = data['position']  # load all the data, THEN set position
 
     def __repr__(self):
-        return f'<Trainer. self play count: {self.self_play_count}, training steps: {self.training_step_count}>'
-
-
-
+        return f'<Trainer. : training steps: {self.training_steps}>'

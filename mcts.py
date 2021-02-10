@@ -3,31 +3,26 @@ import logging
 import math
 import numpy as np
 import random
-
 import torch
 
-from alpha_net import AlphaNet
-from game.connect4 import Connect4
-from utils.logger import get_logger
-
-
-# log_file = 'mcts_v6.log'
-# logger = get_logger(__name__, log_file)
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Node:
-    node_id = 0
+    """
+    A node in the Monte Carlo Search Tree. Each Node maintains information about
+    the edge leading to itself from its parent node as well as the initial probabilities
+    of selecting outgoing edges and the search-improved policy pi probabilities of
+    selecting each outgoing edge.
+    """
     def __init__(self, state: np.array, player_id: int, parent=None):
-        self.id = Node.node_id
         self.player_id = player_id # necessary to interpret game outcome for value assignment
-        self.state = state  # game state
+        self.state = state
         self.parent = parent
         self.edges = {}  # {k=action: v=child node}
         self.W = 0  # sum of value derived below node
         self.N = 0  # visit count
         self.P = None  # prior probabilities for action. {k=action: v=prob}
-        Node.node_id += 1
-    
+
     @property
     def Q(self):
         """Average value derived below node."""
@@ -44,11 +39,10 @@ class Node:
         policy_probs = np.zeros(7) # adjust to game.actions if want to use for other board dims or games
         if self.N <= 1:
             return policy_probs
-        for action in range(len(policy_probs)):  
-            if action in self.edges:
-                policy_probs[action] = (self.edges[action].N / (self.N-1))
+        for action in self.edges:
+            policy_probs[action] = (self.edges[action].N / (self.N-1))
         return policy_probs
-    
+
     def __repr__(self):
         s = f'MCTS Node for player {self.player_id}, ID: {self.id}, Q: {self.Q:.3f}, W: {self.W:.3f}, N: {self.N}'
         s = s + '\nChildren Nodes:\n'
@@ -56,41 +50,34 @@ class Node:
             s = s + f'Action {action}: ID={self.edges[action].id}, P={self.P[action]:.3f}, N={self.edges[action].N}, Q={self.edges[action].Q:.3f}, Pi={self.Pi[action]:.3f}\n'
         return s
 
-def select_leaf(node: Node, game: Connect4,  C_puct=1.0) -> Node:
+def select_leaf(node, game,  C_puct=1.0) -> Node:
     """
     Find a leaf node by recursively traversing the game tree.
-    
-    Take actions that maximize Q + U where U is a variant of the UCT
-    algorithm that controls exploration. U is large for nodes with small N and high prior probabilities
-    and asymptotically selects paths with high Q vals. A leaf node indicates a
-    terminal or unexplored state.
+
+    Take actions that maximize Q + U where U is a variant of the UCT algorithm that
+    controls exploration. U is large for nodes with small N and high prior probabilities
+    and asymptotically selects paths with high Q vals. A leaf node indicates a terminal
+    or unexplored state.
     """
-    # base case: return discovered leaf node.
     if not node.explored:
         return node
-    
-    # logger.info(f'SELECTING LEAF FOR {node}')
-    # logger.info(f'state:\n{game}')
-
 
     # recursively take actions that maximize Q + U until a leaf node is found.
     highest_score = -float('inf')
     next_action = None
     for action in node.edges:
-        Q = node.edges[action].Q  
+        Q = node.edges[action].Q
         U = C_puct * node.P[action] * (np.sqrt(node.N) / (1 + node.edges[action].N))
         if Q + U > highest_score:
             highest_score = Q + U
             next_action = action
-    
-    # logger.info(f'selected {next_action}')
 
     game.make_move(next_action)
     next_node = node.edges[next_action]
 
     return select_leaf(next_node, game)
 
-def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet_alpha: float) -> dict:
+def prior_action_probs(state, net, game, dirichlet_alpha) -> dict:
     """Return dict of prior action probabilities derived from net policy head."""
     prior_probs = net(state.to(device))[1].detach().cpu().squeeze().numpy()
     dirichlet_noise = np.zeros(7)
@@ -107,47 +94,34 @@ def prior_action_probs(state: np.array, net: AlphaNet, game: Connect4, dirichlet
 
 def backup(node: Node, V: float) -> None:
     """Recursively update the nodes along the path taken to reach given node"""
-    
-    # logger.info(f'BACKUP called on Node {node.id}, with V={V}') 
-    
     node.N += 1
     node.W += V
-    
     if node.parent:
-        backup(node.parent, -V)    
+        backup(node.parent, -V)
 
-def process_leaf(leaf: Node, net: AlphaNet, game: Connect4, dirichlet_alpha: float) -> None:
+def process_leaf(leaf, net, game, dirichlet_alpha: float) -> None:
     """
     Get value for leaf state, initialize child nodes, update tree.
 
     Query NN for value and action probabilities for leaf state.
-    Action probabilities are assigned as prior probabilities for all 
-    leaf node edges. All possible edges and resulting nodes of the 
+    Action probabilities are assigned as prior probabilities for all
+    leaf node edges. All possible edges and resulting nodes of the
     leaf node are initialized. Traverse backwards up the tree to update
     all nodes along the path to the leaf node.
     """
-
-
-    # logger.info(f'\nPROCESSING LEAF: {leaf}')
-
-
     if game.outcome:  # leaf is a terminal node
-
-        # logger.info('LEAF IS TERMINAL')
-
-        if game.outcome == leaf.parent.player_id: 
+        if game.outcome == leaf.parent.player_id:
             V = 1
-        elif game.outcome == 'tie': 
+        elif game.outcome == 'tie':
             V = 0
-        else: 
+        else:
             V = -1
         backup(leaf, V)
 
     else:
-        V = net(leaf.state.to(device))[0].item()
+        V = net(leaf.state.to(device))[0].detach().item()
         leaf.P = prior_action_probs(leaf.state, net, game, dirichlet_alpha)
 
-        # initialize all possible edges and resulting child nodes.
         for action in game.valid_actions:
             game_copy = copy.deepcopy(game)
             game_copy.make_move(action)
@@ -161,12 +135,12 @@ def select_action(node, training: bool) -> int:
     """
     Select an action after MCTS simulations.
 
-    If training, select an action from the current state proportional to  
-    visit count. Otherwise, select the most visited action. Selecting action
-    proportional to visits mimics a constant temperature setting of 1.0 in
-    regards to AlphaZero action selection equation: 
-    Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
-    of visits to each possible edge.
+    If training, select an action from the current state proportional to visit count.
+    Otherwise, select the most visited action. Selecting action proportional to visits
+    mimics a constant temperature setting of 1.0 in regards to AlphaZero action
+    selection equation:
+        Pi(a|s) = (N(s,a)**(1/temp)) / (N(s,b)**(1/temp)) where N(s,b) is sum
+        of visits to each possible edge.
     """
     if not training:
         most_visited = max(node.edges.keys(), key=lambda x: node.edges[x].N)
@@ -177,32 +151,26 @@ def select_action(node, training: bool) -> int:
 
     return next_action
 
-
-#####
-## MCTS SEARCH IS PRIME FOR MULTIPROCESSING FOR PARRELIZING THE SIMULATIONS
-
-def mcts_search(root: Node, net: AlphaNet, game: Connect4, n_simulations: int,
-                        C_puct: float, dirichlet_alpha: float, training: bool) -> int:
+def mcts_search(root, net, game, n_simulations, C_puct: float, dirichlet_alpha: float, training: bool) -> int:
     """Return selected action after executing given number of MCTS simulations from root node"""
     root.parent = None  # stop updating discarded parts of search tree
-
-    # logger.info('-------------------------------------\n\n')
-    # logger.info('NEW MCTS FROM:')
 
     for simulation in range(n_simulations):
         game_copy = copy.deepcopy(game)
         leaf = select_leaf(root, game_copy, C_puct)
-        process_leaf(leaf, net, game_copy, dirichlet_alpha)  
-        
+        process_leaf(leaf, net, game_copy, dirichlet_alpha)
     action = select_action(root, training)
-    
+
     return action
 
-def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: float, dirichlet_alpha: float) -> tuple:
+def mcts_self_play(net, game, n_simulations, C_puct: float, dirichlet_alpha: float) -> tuple:
     """
-    Generate training data via self-play. Returns list of (state, Pi, Z) tuples.
-    Pi: improved action probabilities resulting from MCTS.
-    Z: game outcome with value in [-1, 0, 1] for loss, tie, draw.
+    Generate training data via self-play.
+
+    Returns list of (state, Pi, Z) tuples where:
+        - state: game state
+        - Pi: improved action probabilities resulting from MCTS
+        - Z: game outcome with value in [-1, 0, 1] for loss, tie, draw
     """
     states, Pis, Zs = [],[],[]
     current_node = Node(game.state, parent=None, player_id=game.player_turn)
@@ -213,19 +181,15 @@ def mcts_self_play(net: AlphaNet, game: Connect4, n_simulations: int, C_puct: fl
         states.append(game.state)
         Pis.append(current_node.Pi)
         Zs.append(0)  # placeholder with value for a tie game.
-        
+
         game.make_move(action)
         current_node = current_node.edges[action]
-
-    # logger.info(f'\n\n GAME OUTCOME: {game.outcome}')
 
     if game.outcome == 1:
         Zs[::2] = [1] * len(Zs[::2])
         Zs[1::2] = [-1] * len(Zs[1::2])
-    elif game.outcome == 2: 
+    elif game.outcome == 2:
         Zs[::2] = [-1] * len(Zs[::2])
         Zs[1::2] = [1] * len(Zs[1::2])
-    
-    return states, Pis, Zs
 
-    
+    return states, Pis, Zs

@@ -4,7 +4,7 @@ import random
 GameData = namedtuple('GameData', field_names=('state', 'Pi', 'Z'))
 
 class ReplayBuffer:
-    def __init__(self, capacity=10000, seed=3):
+    def __init__(self, capacity=5000, seed=333):
         self.capacity = capacity
         self.memory = [] 
         self.position = 0
@@ -12,7 +12,7 @@ class ReplayBuffer:
     
     def push(self, state, Pi, Z):
         if len(self.memory) <= self.position:
-            self.memory.append(None)  # avoid index errors below
+            self.memory.append(None)
         self.memory[self.position] = GameData(state, Pi, Z)
         self.position = (self.position + 1) % self.capacity
         

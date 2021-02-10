@@ -2,7 +2,12 @@ import numpy as np
 import torch
 
 class Connect4:
-
+    """
+    Connect4 implementation that provides exposes information about player turn, 
+    valid/invalid moves, and 3-channel game state that can be passed to network 
+    for training (i.e. uses separate channels to indicate player turn, player1 pieces, 
+    and player2 pieces).
+    """
     def __init__(self, rows=6, cols=7):
         self.rows = rows
         self.cols = cols
@@ -20,22 +25,15 @@ class Connect4:
 
     @property
     def valid_actions(self):
-        valid_actions = []
-        for i in range(self.cols):
-            if self.board[0, i] == 0.0:
-                valid_actions.append(i)
-        return valid_actions
+        return [i for i in range(self.cols) if self.board[0][i] == 0]
 
     @property
     def invalid_actions(self):
-        invalid_actions = []
-        for i in range(self.cols):
-            if self.board[(0, i)] != 0:
-                invalid_actions.append(i)
-        return invalid_actions
+        return [i for i in range(self.cols) if self.board[0][i] != 0]
 
     @property
     def state(self):
+        """Return game state for training neural net."""
         state = np.zeros((3, self.rows, self.cols))
         for row in range(self.rows):
             for col in range(self.cols):
@@ -71,7 +69,7 @@ class Connect4:
         return np.where(col == 0)[0][0]
 
     def check_winning_move(self, col):
-        """Check if most recent move (given by col) is a winning move. Update game outcome"""
+        """Return if most recent move in column col is a winning move. Update game outcome"""
         if self.turns < 7:
             return False
 
@@ -87,7 +85,6 @@ class Connect4:
         elif (self.board[row+1][col] == player_id and
               self.board[row+2][col] == player_id and
               self.board[row+3][col] == player_id):
-
             self.outcome = player_id
             return True
 
