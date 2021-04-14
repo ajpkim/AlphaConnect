@@ -1,0 +1,10 @@
+
+* AlphaConnect
+
+AlphaConnect is a deep RL system based on AlphaZero.
+
+The network architecture and hyperparameters I trained with here were sufficient to achieve gradual continuous learning but I did not test many other configurations.
+
+The heart of the algorithm (self-play training data generation) is in =mcts.py= and should be easily extendable to other projects and implementations of adversial 2-player games. 
+
+See [[https://ajpkim.com/projects/alphaconnect][my site]] for a detailed project writeup.
