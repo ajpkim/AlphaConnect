@@ -1,7 +1,7 @@
 numpy==1.20.1
 Pillow==8.1.0
 PyYAML==5.4.1
-torch==1.7.1+cpu
+torch==1.13.1
 torchaudio==0.7.2
 torchvision==0.8.2+cpu
 typing-extensions==3.7.4.3
